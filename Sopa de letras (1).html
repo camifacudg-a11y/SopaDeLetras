@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Sopa de letras</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Playwrite+AR:wght@100..400&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#faf6ef;--fg:#2b2622;--muted:#7a7068;--cell:#fffdf9;--line:#e4dccf;--accent:#d9480f;--hit:#ffd8a8;--ok:#b2f2bb;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#1d1a17;--fg:#f1ebe2;--muted:#a89f94;--cell:#26221e;--line:#3a342e;--accent:#ff922b;--hit:#7a4a12;--ok:#2b6a36}}
+:root[data-theme="dark"]{--bg:#1d1a17;--fg:#f1ebe2;--muted:#a89f94;--cell:#26221e;--line:#3a342e;--accent:#ff922b;--hit:#7a4a12;--ok:#2b6a36}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--fg);font-family:"Playwrite AR",cursive,Georgia,serif;display:flex;flex-direction:column;align-items:center;padding:20px 12px 32px}
+h1{font-weight:300;font-size:clamp(1.5rem,5vw,2.2rem);margin:0 0 4px}
+p.sub{color:var(--muted);font-size:.8rem;margin:0 0 18px;text-align:center}
+#grid{display:grid;grid-template-columns:repeat(12,1fr);width:min(92vw,480px);aspect-ratio:1;gap:2px;touch-action:none;user-select:none;background:var(--line);padding:2px;border-radius:10px}
+.c{background:var(--cell);display:flex;align-items:center;justify-content:center;font-size:clamp(.7rem,3.2vw,1.1rem);font-weight:400;border-radius:4px;cursor:pointer}
+.c.sel{background:var(--hit)}
+.c.found{background:var(--ok)}
+#words{display:flex;flex-wrap:wrap;gap:8px;justify-content:center;margin:20px 0 10px;max-width:480px}
+.w{border:1px solid var(--line);border-radius:999px;padding:6px 14px;font-size:.8rem}
+.w.done{text-decoration:line-through;color:var(--muted);background:var(--ok)}
+#msg{min-height:1.6em;color:var(--accent);font-size:.95rem;margin:6px 0}
+button{font-family:inherit;background:var(--fg);color:var(--bg);border:0;border-radius:999px;padding:8px 20px;font-size:.8rem;cursor:pointer}
+</style>
+</head>
+<body>
+<h1>Sopa de letras</h1>
+<p class="sub">Encontrá los 5 conceptos clave del diseño. Arrastrá sobre las letras.</p>
+<div id="grid"></div>
+<div id="words"></div>
+<div id="msg"></div>
+<button id="reset">Reiniciar</button>
+<script>
+var BANK=["COMPOSICION","TIPOGRAFIA","JERARQUIA","CONTRASTE","RETICULA","COLOR","PROPORCION","EQUILIBRIO","RITMO","ESCALA","KERNING","INTERLINEADO","LEGIBILIDAD","MARCA","IDENTIDAD","SIMETRIA","ALINEACION","TEXTURA","FORMA","ESPACIO","SENALETICA","ACCESIBILIDAD","MODULO","PICTOGRAMA","EDITORIAL"].filter(function(w){return w.length<=12;});
+var WORDS=[];
+function pick(){
+ var dirs=[[0,1],[1,0],[1,1],[0,-1],[-1,0],[-1,-1],[1,-1],[-1,1]];
+ var bank=BANK.slice().sort(function(){return Math.random()-.5;});
+ var occ={};WORDS=[];
+ for(var b=0;b<bank.length&&WORDS.length<5;b++){
+  var w=bank[b];
+  for(var t=0;t<300;t++){
+   var d=dirs[Math.floor(Math.random()*8)],r=Math.floor(Math.random()*12),c=Math.floor(Math.random()*12);
+   var er=r+(w.length-1)*d[0],ec=c+(w.length-1)*d[1];
+   if(er<0||er>11||ec<0||ec>11)continue;
+   var ok=true;
+   for(var k=0;k<w.length;k++){var key=(r+k*d[0])+","+(c+k*d[1]);if(occ[key]&&occ[key]!==w[k]){ok=false;break;}}
+   if(!ok)continue;
+   for(var k=0;k<w.length;k++)occ[(r+k*d[0])+","+(c+k*d[1])]=w[k];
+   WORDS.push({w:w,r:r,c:c,dr:d[0],dc:d[1]});break;
+  }
+ }
+}
+var N=12,g=[],cells=[],found={},start=null,cur=[];
+var grid=document.getElementById("grid"),msg=document.getElementById("msg");
+function build(){
+ pick();
+ var L="ABCDEFGHIJKLMNOPQRSTUVWXYZ";
+ g=[];for(var i=0;i<N;i++){g.push([]);for(var j=0;j<N;j++)g[i].push(L[Math.floor(Math.random()*26)]);}
+ WORDS.forEach(function(o){for(var k=0;k<o.w.length;k++)g[o.r+k*o.dr][o.c+k*o.dc]=o.w[k];});
+ grid.innerHTML="";cells=[];found={};msg.textContent="";
+ for(var i=0;i<N;i++)for(var j=0;j<N;j++){var d=document.createElement("div");d.className="c";d.textContent=g[i][j];d.dataset.r=i;d.dataset.c=j;grid.appendChild(d);cells.push(d);}
+ var ws=document.getElementById("words");ws.innerHTML="";
+ WORDS.forEach(function(o){var s=document.createElement("span");s.className="w";s.id="w-"+o.w;s.textContent=o.w.toLowerCase();ws.appendChild(s);});
+}
+function line(a,b){
+ var dr=b.r-a.r,dc=b.c-a.c,n=Math.max(Math.abs(dr),Math.abs(dc));
+ if(!(dr===0||dc===0||Math.abs(dr)===Math.abs(dc)))return [a];
+ var sr=Math.sign(dr),sc=Math.sign(dc),out=[];
+ for(var k=0;k<=n;k++)out.push({r:a.r+k*sr,c:a.c+k*sc});
+ return out;
+}
+function el(p){return cells[p.r*N+p.c];}
+function pos(e){var t=document.elementFromPoint(e.clientX,e.clientY);return t&&t.classList.contains("c")?{r:+t.dataset.r,c:+t.dataset.c}:null;}
+function paint(){cells.forEach(function(x){x.classList.remove("sel");});cur.forEach(function(p){el(p).classList.add("sel");});}
+grid.addEventListener("pointerdown",function(e){var p=pos(e);if(p){start=p;cur=[p];paint();}});
+grid.addEventListener("pointermove",function(e){if(!start)return;var p=pos(e);if(p){cur=line(start,p);paint();}});
+window.addEventListener("pointerup",function(){
+ if(!start)return;
+ var s=cur.map(function(p){return g[p.r][p.c];}).join("");
+ var rs=s.split("").reverse().join("");
+ WORDS.forEach(function(o){
+  if(!found[o.w]&&(s===o.w||rs===o.w)){
+   found[o.w]=1;cur.forEach(function(p){el(p).classList.add("found");});
+   document.getElementById("w-"+o.w).classList.add("done");
+  }
+ });
+ var n=Object.keys(found).length;
+ msg.textContent=n===WORDS.length?"¡Las encontraste todas!":"";
+ start=null;cur=[];paint();
+});
+document.getElementById("reset").onclick=build;
+build();
+</script>
+</body>
+</html>
